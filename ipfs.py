@@ -30,18 +30,25 @@ def pin_to_ipfs(data):
 
 def get_from_ipfs(cid, content_type="json"):
     """
-    Pull by CID
+		Pull by CID
     """
-    assert isinstance(cid, str), "get_from_ipfs accepts a cid in the form of a string"
-
-    url = f"https://{PINATA_GATEWAY}/ipfs/{cid}"
-    resp = requests.get(url)
-    resp.raise_for_status()
+    assert isinstance(cid, str), "get_from_ipfs get CID"
+    # private gateway
+    primary_url = f"https://{PINATA_GATEWAY}/ipfs/{cid}"
+    try:
+        resp = requests.get(primary_url, timeout=10)
+        resp.raise_for_status()
+    except requests.exceptions.HTTPError as e:
+        if e.response.status_code == 403:
+            # fall back to public gateway
+            fallback_url = f"https://ipfs.io/ipfs/{cid}"
+            resp = requests.get(fallback_url, timeout=10)
+            resp.raise_for_status()
+        else:
+            # error
+            raise
 
     if content_type.lower() == "json":
-        data = resp.json()
-        assert isinstance(data, dict), "get_from_ipfs dict"
+        return resp.json()
     else:
-        data = resp.text
-
-    return data
+        return resp.text
